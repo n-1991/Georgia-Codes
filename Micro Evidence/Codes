@@ -1,1 +1,220 @@
 
+library(stargazer) 
+library(tidyverse)
+library(ggplot2)
+library(lfe)
+library(foreign)
+library(haven)
+library(raster)
+library(lubridate)
+library(broom)
+library(sandwich)
+library(lmtest)
+library(plm)
+library(plotly)
+library(fwildclusterboot)
+library(fixest)
+library(survey)
+library(janitor)
+library(viridis)
+library(zoo)
+library(scales)
+library(hablar)
+library(HonestDiD)
+
+set.seed(701)
+
+df<-readRDS('/Users/nd471/Dropbox/GF\ Project\ shared/Public_Codes_MicroEvidence/Georgia_Master.rds')
+
+
+#TABLE 1 Panel A Col 1-4
+a11A<-feols(had3rd_plus_married~treatment_orth:post,data=df)
+summary(a11A)
+a11A_matrix<-sandwich::vcovBS(a11A,R=500, cluster = ~ regrec+year)
+
+a11B<-feols(had3rd_plus_married~treatment_orth:post|case_id+year,data=df)
+summary(a11B)
+a11B_matrix<-sandwich::vcovBS(a11B,R=500, cluster = ~ regrec+year)
+
+a11C<-feols(had3rd_plus_married~treatment_orth:post|case_id+regrec^year,data=df)
+summary(a11C)
+a11C_matrix<-sandwich::vcovBS(a11C,R=500, cluster = ~ regrec+year)
+
+a11<-feols(had3rd_plus_married~treatment_orth:post+agegrp_f+lag_csum|case_id+regrec^year,data=df)
+summary(a11)
+a11_matrix<-sandwich::vcovBS(a11,R=500, cluster = ~ regrec+year)
+
+etable(list(a11A, a11B, a11C, a11), keep = c('treatment_orth','post'), vcov = list(a11A_matrix,a11B_matrix, a11C_matrix, a11_matrix))
+
+#TABLE 1 Panel B Col 1-4
+
+a10A<-feols(gave_birth_married~treatment_orth:post,data=df)
+a10A_matrix<-sandwich::vcovBS(a10A,R=500, cluster = ~ regrec+year)
+
+a10B<-feols(gave_birth_married~treatment_orth:post|case_id+year,data=df)
+a10B_matrix<-sandwich::vcovBS(a10B,R=500, cluster = ~ regrec+year)
+
+a10C<-feols(gave_birth_married~treatment_orth:post|case_id+regrec^year,data=df)
+a10C_matrix<-sandwich::vcovBS(a10C,R=500, cluster = ~ regrec+year)
+
+a10<-feols(gave_birth_married~treatment_orth:post+agegrp_f+lag_csum|case_id+regrec^year,data=df)
+a10_matrix<-sandwich::vcovBS(a10,R=500, cluster = ~ regrec+year)
+
+etable(list(a10A, a10B, a10C, a10),keep = c('treatment_orth','post'), vcov = list(a10A_matrix,a10B_matrix, a10C_matrix, a10_matrix))
+
+#TABLE 2
+#Probability of abortion
+a9<-feols(ab_married~treatment_orth:post+agegrp_f+lag_csum|case_id+regrec^year,data=df)
+a9_matrix<-sandwich::vcovBS(a9,R=500, cluster = ~ regrec+year)
+
+a8<-feols(postfirmar~treatment_orth:post+agegrp_f+lag_csum|case_id+regrec^year,data=df)
+a8_matrix<-sandwich::vcovBS(a8,R=500, cluster = ~ regrec+year)
+
+etable(list(a9, a8), keep = c('treatment_orth','post'),vcov = list(a9_matrix, a8_matrix))
+
+############# ROBUSTNESS #############
+
+#TABEL 3 
+
+
+#IDP interaction
+
+a14<-feols(had3rd_plus_married~treatment_orth:post+post:idp+treatment_orth:post:idp+agegrp_f+lag_csum|case_id+regrec^year,data=df2)
+a14_matrix<-sandwich::vcovBS(a14,R=500, cluster = ~ regrec+year)
+
+a15<-feols(gave_birth_married~treatment_orth:post+post:idp+treatment_orth:post:idp+agegrp_f+lag_csum|case_id+regrec^year,data=df2)
+a15_matrix<-sandwich::vcovBS(a15,R=500, cluster = ~ regrec+year)
+
+#Dropping warzones
+a16<-feols(had3rd_plus_married~treatment_orth:post+agegrp_f+lag_csum|case_id+regrec^year,data=df2[!df2$warzone_new==1,])
+a16_matrix<-sandwich::vcovBS(a16,R=500, cluster = ~ regrec+year)
+
+a17<-feols(gave_birth_married~treatment_orth:post+agegrp_f+lag_csum|case_id+regrec^year,data=df2[!df2$warzone_new==1,])
+a17_matrix<-sandwich::vcovBS(a17,R=500, cluster = ~ regrec+year)
+
+etable(list(a14, a16, a15, a17),keep = c('treatment_orth','post'),vcov = list(a14_matrix,a16_matrix,a15_matrix,a17_matrix))
+
+colnames(df1)
+
+######## TRIPLE DIFF ########
+
+#Table 4
+
+b14<-feols(gave_birth_married~treatment_orth:post+post:ddd+treatment_orth:post:ddd+agegrp_f+lag_csum|case_id+regrec^year,data=df2)
+b14_matrix<-sandwich::vcovBS(b14,R=500, cluster = ~ regrec+year)
+
+etable(list(a10, b14), keep = c('treatment_orth','post'), vcov = list(a10_matrix,b14_matrix))
+
+######## HETEROGENEITY ########
+
+#Table 5
+
+#Sub sample of only women married prior to 2008
+
+a18<-feols(had3rd_plus_married~treatment_orth:post+agegrp_f+lag_csum|case_id+regrec^year,data=df2[df2$Classification.new=='Confirmed',])
+a18_matrix<-sandwich::vcovBS(a18,R=500, cluster = ~ regrec+year)
+
+a19<-feols(gave_birth_married~treatment_orth:post+agegrp_f+lag_csum|case_id+regrec^year,data=df2[df2$Classification.new=='Confirmed',])
+a19_matrix<-sandwich::vcovBS(a19,R=500, cluster = ~ regrec+year)
+
+
+#Age at first birth
+
+
+#dropping na
+dfa<-df %>% drop_na(age_birth_group)
+z1<-feols(age_birth_group~treatment_orth:post+treatment_orth+agegrp_f+lag_csum|regrec^year,data=dfa)
+z1_matrix<-sandwich::vcovBS(z1,R=500, cluster = ~ regrec+year)
+
+
+
+#Age at marriage
+dfb<-df %>% drop_na(agemar)
+z2<-feols(agemar~treatment_orth:post+treatment_orth+agegrp_f+lag_csum|regrec^year,data=dfb)
+z2_matrix<-sandwich::vcovBS(z2,R=500, cluster = ~ regrec+year)
+
+etable(list(a18,a19,z1,z2), keep = c('treatment_orth','post'), vcov = list(a18_matrix,a19_matrix,z1_matrix,z2_matrix))
+
+
+######## ADDITIONAL ROBUSTNESS FOR APPENDIX ######## 
+#Table B.2
+
+# Sample of all women married plus non married
+a20<-feols(had3rd_plus~treatment_orth:post+agegrp_f+lag_csum|case_id+regrec^year,data=df)
+a20_matrix<-sandwich::vcovBS(a20,R=500, cluster = ~ regrec+year)
+
+a21<-feols(gave_birth~treatment_orth:post+agegrp_f+lag_csum|case_id+regrec^year,data=df)
+a21_matrix<-sandwich::vcovBS(a21,R=500, cluster = ~ regrec+year)
+
+a25<-feols(ab~treatment_orth:post+agegrp_f+lag_csum|case_id+regrec^year,data=df)
+a25_matrix<-sandwich::vcovBS(a25,R=500, cluster = ~ regrec+year)
+
+
+# Dropping women who were imputed for years 2005 - 2008
+
+a22<-feols(had3rd_married~treatment_orth:post+agegrp_f+lag_csum|case_id+regrec^year,data=df[!df$sens_impute==1,])
+a22_matrix<-sandwich::vcovBS(a22,R=500, cluster = ~ regrec+year)
+
+a23<-feols(gave_birth_married~treatment_orth:post+agegrp_f+lag_csum|case_id+regrec^year,data=df[!df$sens_impute==1,])
+a23_matrix<-sandwich::vcovBS(a23,R=500, cluster = ~ regrec+year)
+
+etable(list(a20, a21, a25, a22, a23), keep = c('treatment_orth','post'), vcov = list(a20_matrix,a21_matrix,a25_matrix,a22_matrix,a23_matrix))
+
+
+
+#Parallel trends Figure 7A
+
+b1<-felm(had3rd_plus_married~treatment_orth*ref(year_f,ref='2006')+agegrp_f+lag_csum|
+           year+case_id+factor(regrec):factor(year)|0|regrec+year,
+         data=df, na.action = na.exclude)
+summary(b1)
+
+pt1<-tidy(b1)
+pt2<-confint(b1,level = 0.95)
+pt<-cbind(pt1,pt2)
+pt<-tibble(pt)
+pt=pt[grep("treatment_orth:ref", pt$term),]
+pt<-pt %>% rename(conf.low=`2.5 %`,
+                  conf.high=`97.5 %`)
+pt <- rbind(pt[1:22,],0, pt[23:33,] )
+pt<-pt %>%  mutate(year = 1984:2017)
+ptB<-pt[pt$year>2002 ,]
+ptB$Time<-c('-4','-3','-2','-1','0','1','2','3','4','5','6','7','8','9','10')
+ptB$year_f<-as.factor(ptB$year)
+p2 <- ggplot(data = ptB, mapping = aes(year_f, estimate))
+p2+scale_x_discrete(breaks = c('2003','2004','2005','2006','2007','2008','2009','2010','2011','2012','2013','2014','2015','2016','2017'),
+                    labels=c('-4','-3','-2','-1','0','1','2','3','4','5','6','7','8','9','10'))+
+  geom_point()+
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2)+
+  geom_hline(yintercept=0,colour="red",linetype=1)+
+  geom_hline(yintercept=0.0129,colour="blue",linetype=3)+geom_label(aes(x=1.7,y=0.017),label="ATT = 0.013")+
+  labs(x="Year", y="Prob. of 3rd child or higher")+ theme_classic()
+
+#
+#Parallel trends Figure 7B
+b2<-felm(gave_birth_married~treatment_orth*ref(year_f,ref='2006')+agegrp_f+lag_csum|
+           year+case_id+factor(regrec):factor(year)|0|regrec+year,
+         data=df, na.action = na.exclude)
+summary(b2)
+pt1<-tidy(b2)
+pt2<-confint(b2,level = 0.90)
+pt<-cbind(pt1,pt2)
+pt<-tibble(pt)
+pt=pt[grep("treatment_orth:ref", pt$term),]
+pt<-pt %>% rename(conf.low=`5 %`,
+                  conf.high=`95 %`)
+pt <- rbind(pt[1:22,],0, pt[23:33,] )
+pt<-pt %>%  mutate(year = 1984:2017)
+ptA<-pt[pt$year>2002,]
+ptA$Time<-c('-4','-3','-2','-1','0','1','2','3','4','5','6','7','8','9','10')
+ptA$year_f<-as.factor(ptA$year)
+p2 <- ggplot(data = ptA, mapping = aes(year_f, estimate))
+p2+scale_x_discrete(breaks = c('2003','2004','2005','2006','2007','2008','2009','2010','2011','2012','2013','2014','2015','2016','2017'),
+                    labels=c('-4','-3','-2','-1','0','1','2','3','4','5','6','7','8','9','10'))+
+  geom_point()+
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2)+
+  geom_hline(yintercept=0,colour="red",linetype=1)+
+  geom_hline(yintercept=0.0354,colour="blue",linetype=3)+geom_label(aes(x=1.7,y=0.042),label="ATT = 0.035")+
+  labs(x="Year", y="Prob. of giving birth")+ theme_classic()
+
+
